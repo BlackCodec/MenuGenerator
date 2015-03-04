@@ -208,7 +208,7 @@ def PrintHelp():
 	print("Fluxbox: fluxbox")
 	print("JWM: jwm")
 	print("Openbox: openbox")
-	print("\n\nAuthor: Black_Codec\nSite: <http://www.underatrain.tk/>")
+	print("\n\nAuthor: Black_Codec\nSite: <http://www.underatrain.tk/>\nRepository: <https://github.com/BlackCodec/MenuGenerator>")
 
 ### BEGIN RUN ###
 def main(argv):
