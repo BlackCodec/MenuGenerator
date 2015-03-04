@@ -1,5 +1,10 @@
 # MenuGenerator
-Simple menugenerator
+Simple menugenerator for this wm:
+- fluxbox
+- openbox
+- jwm
+
+It uses xdg-menu.
 
 ---
 
