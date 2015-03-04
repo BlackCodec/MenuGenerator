@@ -1,0 +1,266 @@
+#!/usr/bin/env python
+import os
+import sys
+import getopt
+import xdg.Menu
+import xdg.DesktopEntry
+import xdg.IconTheme
+#import ConfigParser
+
+### Configurable Params ###
+BaseConfiguration={
+	'Directory':'~/.config/menugenerator/',
+	'File':'configuration'
+}
+
+### RUNNING ###
+CurrentRunning = {
+	'Options': {
+		'File':{
+			'Configuration':'~/.config/menugenerator/configuration',
+			'Menu':'~/.config/menugenerator/applications.menu'
+		},
+		'Menu':{
+			'Debug':False,
+			'Create':False,
+			'Syntax':'',
+			'Piped':False,
+			'UseGenericName':False
+		},
+		'Icons':{
+			'Use':False,
+			'Theme':None,
+			'Size':None,
+			'Extensions':['png','svg','xpm']
+		},
+		'Categories': {
+			'Order':None,
+			'Icons':None,
+			'Names':None
+		}
+
+	},
+	'Menu':None,
+}
+
+### Functions ###
+def FirstRun():
+	tempfiletowrite=os.path.abspath(os.path.join(os.path.expanduser(BaseConfiguration['Directory']),BaseConfiguration['File']))
+	if not os.path.isfile(tempfiletowrite):
+		tempconfigtowrite="{'Directory':'~/.config/menugenerator/',\n'Icon':{'Size':None,'Theme':None,'Extensions':['png','svg','xpm']},\n'Categories':[{'name':'Accessories','display':'Accessori', 'icon': None},{'name':'Graphics','display':'Grafica', 'icon': None},{'name':'Internet','display':'Internet', 'icon': None},{'name':'Multimedia','display':'Multimedia', 'icon': None},{'name':'Office','display':'Ufficio', 'icon': None},{'name':'System','display':'Sistema', 'icon': None}],\n'Menu':{'DefaultVM' : 'fluxbox','File':'/etc/xdg/menus/lxde-applications.menu','UseGenericName':False,'UseIcon':True,'Piped':True}}\n"
+		with open(tempfiletowrite,"w") as myconfigurationfile:
+			myconfigurationfile.write(tempconfigtowrite)
+
+def BuildRunning(tempconfigfile = None):
+	if tempconfigfile is None:
+		if os.path.isabs(os.path.expanduser(BaseConfiguration['File'])):
+			tempconfigfile = BaseConfiguration['File']
+		else:
+			tempconfigfile = os.path.abspath(os.path.join(os.path.expanduser(BaseConfiguration['Directory']),BaseConfiguration['File']))
+	if os.path.isfile(tempconfigfile):
+		with open(tempconfigfile) as myconfigurationfile:
+			tempconfiguration=eval(myconfigurationfile.read())
+		CurrentRunning['Options']['File']['Configuration']=tempconfigfile
+		if os.path.isabs(os.path.expanduser(tempconfiguration['Menu']['File'])):
+			CurrentRunning['Options']['File']['Menu']=tempconfiguration['Menu']['File']
+		else:
+			CurrentRunning['Options']['File']['Menu']=os.path.abspath(os.path.join(os.path.exanduser(tempconfiguration['Directory']),tempconfiguration['Menu']['File']))
+		CurrentRunning['Options']['Menu']['Syntax']=tempconfiguration['Menu']['DefaultVM']
+		CurrentRunning['Options']['Menu']['UseGenericName'] = tempconfiguration['Menu']['UseGenericName']
+		CurrentRunning['Options']['Icons']['Theme'] = tempconfiguration['Icon']['Theme']
+		CurrentRunning['Options']['Icons']['Size'] = tempconfiguration['Icon']['Size']
+		CurrentRunning['Options']['Icons']['Extensions'] = tempconfiguration['Icon']['Extensions']
+		CurrentRunning['Options']['Icons']['Use']=tempconfiguration['Menu']['UseIcon']
+		CurrentRunning['Options']['Menu']['Piped']=tempconfiguration['Menu']['Piped']
+		tempicon=dict()
+		tempname=dict()	
+		temporder=list()
+		for objectcategory in tempconfiguration['Categories']:
+			temporder.append(objectcategory['name'])
+			if objectcategory['icon'] is not None:
+				tempicon[objectcategory['name']] = objectcategory['icon']
+			tempname[objectcategory['name']]=objectcategory['display']
+		CurrentRunning['Options']['Categories']['Order']=temporder
+		CurrentRunning['Options']['Categories']['Icons']=tempicon
+		CurrentRunning['Options']['Categories']['Names']=tempname
+	CurrentRunning['Menu']=dict()
+
+def ParseMenu(tempobjectmenu = None):
+	if tempobjectmenu is None:
+		if os.path.isabs(os.path.expanduser(CurrentRunning['Options']['File']['Menu'])):
+			tempobjectmenu = xdg.Menu.parse(os.path.abspath(os.path.expanduser(CurrentRunning['Options']['File']['Menu'])))
+		else:
+			tempobjectmenu = xdg.Menu.parse(os.path.abspath(os.path.expanduser(os.path.join(BaseConfiguration['Directory'],BaseConfiguration['File']))))
+		ParseMenu(tempobjectmenu)
+	else:
+		for tempobjectmenuentry in tempobjectmenu.getEntries():
+			if isinstance(tempobjectmenuentry, xdg.Menu.Menu):
+				CurrentRunning['Menu'][tempobjectmenuentry.getPath()]=list()
+				tempicon = ''
+				if CurrentRunning['Options']['Icons']['Use']:
+					if tempobjectmenuentry.getPath() not in CurrentRunning['Options']['Categories']['Icons']:
+						if tempobjectmenuentry.getIcon() != '':
+							tempiconname=tempobjectmenuentry.getIcon()
+						else:
+							tempiconname=tempobjectmenuentry.getPath().lower()
+						tempicon = ObtainIcon(tempiconname,CurrentRunning['Options']['Icons']['Size'],CurrentRunning['Options']['Icons']['Theme'],CurrentRunning['Options']['Icons']['Extensions'],True)
+					else:
+						tempicon = ObtainIcon(CurrentRunning['Options']['Categories']['Icons'][tempobjectmenuentry.getPath()],CurrentRunning['Options']['Icons']['Size'],CurrentRunning['Options']['Icons']['Theme'],CurrentRunning['Options']['Icons']['Extensions'])
+				CurrentRunning['Options']['Categories']['Icons'][tempobjectmenuentry.getPath()] = tempicon
+				ParseMenu(tempobjectmenuentry)
+			elif isinstance(tempobjectmenuentry, xdg.Menu.MenuEntry):
+				tempobjectcategory=CurrentRunning['Menu'][tempobjectmenu.getPath()]
+				tempobjectcategory.append(ParseApplication(tempobjectmenuentry))
+				CurrentRunning['Menu'][tempobjectmenu.getPath()]=tempobjectcategory
+
+
+
+def ParseApplication(tempobjectmenuentry):
+	Result={'name':'', 'desc':'', 'exec':'','icon':''}
+	tempobjectapplication = xdg.DesktopEntry.DesktopEntry(tempobjectmenuentry.DesktopEntry.getFileName())
+	if CurrentRunning['Options']['Icons']['Use']:
+		tempapplicationicon = ObtainIcon(tempobjectapplication.getIcon(),CurrentRunning['Options']['Icons']['Size'],CurrentRunning['Options']['Icons']['Theme'],CurrentRunning['Options']['Icons']['Extensions'])
+		Result['icon'] = tempapplicationicon
+	if CurrentRunning['Options']['Menu']['UseGenericName']:
+		Result['name']=tempobjectapplication.getGenericName()
+	else:
+		Result['name']=tempobjectapplication.getName()
+	Result['desc'] = tempobjectapplication.getComment()
+	Result['exec']=tempobjectapplication.getExec()
+	return Result
+
+
+
+def ObtainIcon(tempiconname,tempiconsize=None,tempicontheme=None,tempextensions=['png', 'svg', 'xpm'], searchforcategory=False):
+	if searchforcategory:
+		result = ObtainIcon('applications-'+tempiconname,tempiconsize,tempicontheme,tempextensions)
+		if result == '':
+			result = ObtainIcon('system-'+tempiconname,tempiconsize,tempicontheme,tempextensions)
+		return result
+	if os.path.isabs(tempiconname):
+		return tempiconname
+	result = xdg.IconTheme.getIconPath(tempiconname,tempiconsize,tempicontheme,tempextensions)
+	if result is None:
+		return ''
+	else:
+		return result
+
+
+### Menu Syntaxes ###
+def CreateFluxboxMenu():
+	result = ""
+	for tempcategoryname in CurrentRunning['Options']['Categories']['Order']:
+		result += "[submenu] ("+CurrentRunning['Options']['Categories']['Names'][tempcategoryname]+") "
+		if CurrentRunning['Options']['Categories']['Icons'][tempcategoryname] != '':
+			result +=" <"+CurrentRunning['Options']['Categories']['Icons'][tempcategoryname]+">"
+		result += "\n"
+		for tempobjectapp in CurrentRunning['Menu'][tempcategoryname]:
+			result += "\t[exec] ("+tempobjectapp['name']+") {"+tempobjectapp['exec']+"} "
+			if tempobjectapp['icon'] != '':
+				result +=" <"+tempobjectapp['icon']+">"
+			result +="\n"
+		result += "[end]\n"
+	return result
+
+def CreateJWMMenu():
+	result = '<?xml version="1.0"?>\n<JWM>\n'
+	for tempcategoryname in CurrentRunning['Options']['Categories']['Order']:
+		result += '<Menu label="'+CurrentRunning['Options']['Categories']['Names'][tempcategoryname]+'"'
+		if CurrentRunning['Options']['Categories']['Icons'][tempcategoryname] != '':
+			result +=' icon="'+CurrentRunning['Options']['Categories']['Icons'][tempcategoryname]+'"'
+		result += ">\n"
+		for tempobjectapp in CurrentRunning['Menu'][tempcategoryname]:
+			result += '\t<Program label="'+tempobjectapp['name']+'" '
+			if tempobjectapp['icon'] != '':
+				result +=' icon="'+tempobjectapp['icon']+'"'
+			result +='>'+tempobjectapp['exec']+'</Program>\n'
+		result += "</Menu>\n"
+	result +="</JWM>\n"
+	return result
+
+def CreateOpenboxMenu():
+	result = '<?xml version="1.0" encoding="UTF-8"?>\n<openbox_pipe_menu>\n'
+	for tempcategoryname in CurrentRunning['Options']['Categories']['Order']:
+		result += '<menu id="'+tempcategoryname.lower()+'" label="'+CurrentRunning['Options']['Categories']['Names'][tempcategoryname]+'"'
+		if CurrentRunning['Options']['Categories']['Icons'][tempcategoryname] != '':
+			result +=' icon="'+CurrentRunning['Options']['Categories']['Icons'][tempcategoryname]+'"'
+		result += ">\n"
+		for tempobjectapp in CurrentRunning['Menu'][tempcategoryname]:
+			result += '\t<item label="'+tempobjectapp['name']+'" '
+			if tempobjectapp['icon'] != '':
+				result +=' icon="'+tempobjectapp['icon']+'"'
+			result +='>'+tempobjectapp['exec']+'</item>\n'
+		result += "</menu>\n"
+	result +="</openbox_pipe_menu>\n"
+	return result
+
+
+def PrintHelp():
+	print("Usage: menugenerator [options]\n")
+	print("Options:")
+	print(" -h , --help: print this message")
+	print(" -d , --dumpconfig: print the configuration file used for process")
+	print(" -g , --generate: generate the menu with default options")
+	print(" -i , --icon: use icon in menu")
+	print(" -p , --pipe: print the generated menu to stdout")
+	print(" -w <windowmanager> , --wm=<windowmanager>: generate the menu for the window manager specified\n")
+	print("Supported Window Manager - Value to use:")
+	print("Fluxbox: fluxbox")
+	print("JWM: jwm")
+	print("Openbox: openbox")
+	print("\n\nAuthor: Black_Codec\nSite: <http://www.underatrain.tk/>")
+
+### BEGIN RUN ###
+def main(argv):
+	FirstRun()
+	BuildRunning()
+	try:
+		opts, args = getopt.getopt(argv,"dgihpw:o:",["dumpconfig","generate","icon","help","pipe","wm=","options="])
+	except getopt.GetoptError as e:
+		print("[ERROR] "+ e.args[0]+"\n")
+		PrintHelp();
+		sys.exit(1)
+	for opt, arg in opts:
+		if opt in ("-h", "--help"):
+			PrintHelp()
+			sys.exit(0)
+		elif opt in ("-g", "--generate"):
+			CurrentRunning['Options']['Menu']['Create'] = True
+		elif opt in ("-i", "--icon"):
+			CurrentRunning['Options']['Menu']['Create'] = True
+			CurrentRunning['Options']['Icons']['Use'] = True
+		elif opt in ("-p" , "--pipe"):
+			CurrentRunning['Options']['Menu']['Create'] = True
+			CurrentRunning['Options']['Menu']['Piped'] = True
+		elif opt in ("-w", "--wm"):
+			CurrentRunning['Options']['Menu']['Create'] = True
+			CurrentRunning['Options']['Menu']['Syntax'] = arg.lower()
+		elif opt in ("-d", "--dumpconfig"):
+			CurrentRunning['Options']['Menu']['Debug'] = True
+		elif opt in ("-o", "--options"):
+			BuildRunning(arg.lower())
+		else:
+			PrintHelp()
+			sys.exit(0)
+	# End params
+	if CurrentRunning['Options']['Menu']['Debug']:
+		import pprint
+		pprint.pprint(CurrentRunning)
+		sys.exit(0)
+	if CurrentRunning['Options']['Menu']['Create']:
+		tempmenu=''
+		ParseMenu()
+		if CurrentRunning['Options']['Menu']['Syntax'] == "fluxbox":
+			tempmenu = CreateFluxboxMenu()
+		elif CurrentRunning['Options']['Menu']['Syntax'] == "jwm":
+			tempmenu = CreateJWMMenu()
+		elif CurrentRunning['Options']['Menu']['Syntax'] == "openbox":
+			tempmenu = CreateOpenboxMenu()
+		if CurrentRunning['Options']['Menu']['Piped']:
+			print(tempmenu)
+	sys.exit(0)
+			
+
+
+if __name__ == "__main__":
+	main(sys.argv[1:])	
