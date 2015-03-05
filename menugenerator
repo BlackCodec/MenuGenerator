@@ -126,7 +126,7 @@ def ParseApplication(tempobjectmenuentry):
 	else:
 		Result['name']=tempobjectapplication.getName()
 	Result['desc'] = tempobjectapplication.getComment()
-	Result['exec']=tempobjectapplication.getExec()
+	Result['exec']=tempobjectapplication.getExec().spli('%')[0]
 	return Result
 
 
