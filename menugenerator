@@ -189,7 +189,7 @@ def CreateOpenboxMenu():
 			result += '\t<item label="'+tempobjectapp['name']+'" '
 			if tempobjectapp['icon'] != '':
 				result +=' icon="'+tempobjectapp['icon']+'"'
-			result +='>'+tempobjectapp['exec']+'</item>\n'
+			result +='><action name="Execute"><command>'+tempobjectapp['exec']+'</command><startupnotify><enabled>yes</enabled></startupnotify></action></item>\n'
 		result += "</menu>\n"
 	result +="</openbox_pipe_menu>\n"
 	return result
