@@ -5,7 +5,9 @@ import getopt
 import xdg.Menu
 import xdg.DesktopEntry
 import xdg.IconTheme
-#import ConfigParser
+
+### Version ###
+CurrentVersion="0.2"
 
 ### Configurable Params ###
 BaseConfiguration={
@@ -47,6 +49,8 @@ CurrentRunning = {
 def FirstRun():
 	tempfiletowrite=os.path.abspath(os.path.join(os.path.expanduser(BaseConfiguration['Directory']),BaseConfiguration['File']))
 	if not os.path.isfile(tempfiletowrite):
+		if not os.path.exists(os.path.abspath(os.path.expanduser(BaseConfiguration['Directory']))):
+			os.makedirs(os.path.abspath(os.path.expanduser(BaseConfiguration['Directory'])))
 		tempconfigtowrite="{'Directory':'~/.config/menugenerator/',\n'Icon':{'Size':None,'Theme':None,'Extensions':['png','svg','xpm']},\n'Categories':[{'name':'Accessories','display':'Accessori', 'icon': None},{'name':'Graphics','display':'Grafica', 'icon': None},{'name':'Internet','display':'Internet', 'icon': None},{'name':'Multimedia','display':'Multimedia', 'icon': None},{'name':'Office','display':'Ufficio', 'icon': None},{'name':'System','display':'Sistema', 'icon': None}],\n'Menu':{'DefaultVM' : 'fluxbox','File':'/etc/xdg/menus/lxde-applications.menu','UseGenericName':False,'UseIcon':True,'Piped':True}}\n"
 		with open(tempfiletowrite,"w") as myconfigurationfile:
 			myconfigurationfile.write(tempconfigtowrite)
@@ -150,47 +154,53 @@ def ObtainIcon(tempiconname,tempiconsize=None,tempicontheme=None,tempextensions=
 def CreateFluxboxMenu():
 	result = ""
 	for tempcategoryname in CurrentRunning['Options']['Categories']['Order']:
-		result += "[submenu] ("+CurrentRunning['Options']['Categories']['Names'][tempcategoryname]+") "
-		if CurrentRunning['Options']['Categories']['Icons'][tempcategoryname] != '':
-			result +=" <"+CurrentRunning['Options']['Categories']['Icons'][tempcategoryname]+">"
-		result += "\n"
-		for tempobjectapp in CurrentRunning['Menu'][tempcategoryname]:
-			result += "\t[exec] ("+tempobjectapp['name']+") {"+tempobjectapp['exec']+"} "
-			if tempobjectapp['icon'] != '':
-				result +=" <"+tempobjectapp['icon']+">"
-			result +="\n"
-		result += "[end]\n"
+		if tempcategoryname in CurrentRunning['Options']['Categories']['Names']:
+			result += "[submenu] ("+CurrentRunning['Options']['Categories']['Names'][tempcategoryname]+") "
+			if tempcategoryname in CurrentRunning['Options']['Categories']['Icons']:
+				result +=" <"+CurrentRunning['Options']['Categories']['Icons'][tempcategoryname]+">"
+			result += "\n"
+			if tempcategoryname in CurrentRunning['Menu']:
+				for tempobjectapp in CurrentRunning['Menu'][tempcategoryname]:
+					result += "\t[exec] ("+tempobjectapp['name']+") {"+tempobjectapp['exec']+"} "
+					if tempobjectapp['icon'] != '':
+						result +=" <"+tempobjectapp['icon']+">"
+					result +="\n"
+			result += "[end]\n"
 	return result
 
 def CreateJWMMenu():
 	result = '<?xml version="1.0"?>\n<JWM>\n'
 	for tempcategoryname in CurrentRunning['Options']['Categories']['Order']:
-		result += '<Menu label="'+CurrentRunning['Options']['Categories']['Names'][tempcategoryname]+'"'
-		if CurrentRunning['Options']['Categories']['Icons'][tempcategoryname] != '':
-			result +=' icon="'+CurrentRunning['Options']['Categories']['Icons'][tempcategoryname]+'"'
-		result += ">\n"
-		for tempobjectapp in CurrentRunning['Menu'][tempcategoryname]:
-			result += '\t<Program label="'+tempobjectapp['name']+'" '
-			if tempobjectapp['icon'] != '':
-				result +=' icon="'+tempobjectapp['icon']+'"'
-			result +='>'+tempobjectapp['exec']+'</Program>\n'
-		result += "</Menu>\n"
+		if tempcategoryname in CurrentRunning['Options']['Categories']['Names']:
+			result += '<Menu label="'+CurrentRunning['Options']['Categories']['Names'][tempcategoryname]+'"'
+			if tempcategoryname in CurrentRunning['Options']['Categories']['Icons']:
+				result +=' icon="'+CurrentRunning['Options']['Categories']['Icons'][tempcategoryname]+'"'
+			result += ">\n"
+			if tempcategoryname in CurrentRunning['Menu']:
+				for tempobjectapp in CurrentRunning['Menu'][tempcategoryname]:
+					result += '\t<Program label="'+tempobjectapp['name']+'" '
+					if tempobjectapp['icon'] != '':
+						result +=' icon="'+tempobjectapp['icon']+'"'
+					result +='>'+tempobjectapp['exec']+'</Program>\n'
+			result += "</Menu>\n"
 	result +="</JWM>\n"
 	return result
 
 def CreateOpenboxMenu():
 	result = '<?xml version="1.0" encoding="UTF-8"?>\n<openbox_pipe_menu>\n'
 	for tempcategoryname in CurrentRunning['Options']['Categories']['Order']:
-		result += '<menu id="'+tempcategoryname.lower()+'" label="'+CurrentRunning['Options']['Categories']['Names'][tempcategoryname]+'"'
-		if CurrentRunning['Options']['Categories']['Icons'][tempcategoryname] != '':
-			result +=' icon="'+CurrentRunning['Options']['Categories']['Icons'][tempcategoryname]+'"'
-		result += ">\n"
-		for tempobjectapp in CurrentRunning['Menu'][tempcategoryname]:
-			result += '\t<item label="'+tempobjectapp['name']+'" '
-			if tempobjectapp['icon'] != '':
-				result +=' icon="'+tempobjectapp['icon']+'"'
-			result +='><action name="Execute"><command>'+tempobjectapp['exec']+'</command><startupnotify><enabled>yes</enabled></startupnotify></action></item>\n'
-		result += "</menu>\n"
+		if tempcategoryname in CurrentRunning['Options']['Categories']['Names']:
+			result += '<menu id="'+tempcategoryname.lower()+'" label="'+CurrentRunning['Options']['Categories']['Names'][tempcategoryname]+'"'
+			if tempcategoryname in CurrentRunning['Options']['Categories']['Icons']:
+				result +=' icon="'+CurrentRunning['Options']['Categories']['Icons'][tempcategoryname]+'"'
+			result += ">\n"
+			if tempcategoryname in CurrentRunning['Menu']:
+				for tempobjectapp in CurrentRunning['Menu'][tempcategoryname]:
+					result += '\t<item label="'+tempobjectapp['name']+'" '
+					if tempobjectapp['icon'] != '':
+						result +=' icon="'+tempobjectapp['icon']+'"'
+					result +='><action name="Execute"><command>'+tempobjectapp['exec']+'</command><startupnotify><enabled>yes</enabled></startupnotify></action></item>\n'
+			result += "</menu>\n"
 	result +="</openbox_pipe_menu>\n"
 	return result
 
@@ -199,6 +209,7 @@ def PrintHelp():
 	print("Usage: menugenerator [options]\n")
 	print("Options:")
 	print(" -h , --help: print this message")
+	print(" -v , --version: print current version")
 	print(" -d , --dumpconfig: print the configuration file used for process")
 	print(" -g , --generate: generate the menu with default options")
 	print(" -i , --icon: use icon in menu")
@@ -208,14 +219,14 @@ def PrintHelp():
 	print("Fluxbox: fluxbox")
 	print("JWM: jwm")
 	print("Openbox: openbox")
-	print("\n\nAuthor: Black_Codec\nSite: <http://www.underatrain.tk/>\nRepository: <https://github.com/BlackCodec/MenuGenerator>")
+	print("\nVersion:"+ CurrentVersion + "\n\nAuthor: Black_Codec\nSite: <http://www.underatrain.it/>\nRepository: <https://github.com/BlackCodec/MenuGenerator>")
 
 ### BEGIN RUN ###
 def main(argv):
 	FirstRun()
 	BuildRunning()
 	try:
-		opts, args = getopt.getopt(argv,"dgihpw:o:",["dumpconfig","generate","icon","help","pipe","wm=","options="])
+		opts, args = getopt.getopt(argv,"dgihpvw:o:",["version","dumpconfig","generate","icon","help","pipe","wm=","options="])
 	except getopt.GetoptError as e:
 		print("[ERROR] "+ e.args[0]+"\n")
 		PrintHelp();
@@ -223,6 +234,10 @@ def main(argv):
 	for opt, arg in opts:
 		if opt in ("-h", "--help"):
 			PrintHelp()
+			sys.exit(0)
+		elif opt in ("-v", "--version"):
+			print("Openbox: openbox")
+			print("\nVersion:"+ CurrentVersion + "\n\nAuthor: Black_Codec\nSite: <http://www.underatrain.it/>\nRepository: <https://github.com/BlackCodec/MenuGenerator>")
 			sys.exit(0)
 		elif opt in ("-g", "--generate"):
 			CurrentRunning['Options']['Menu']['Create'] = True

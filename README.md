@@ -1,4 +1,7 @@
 # MenuGenerator
+---
+Version: 0.2
+---
 Simple menugenerator for this wm:
 - fluxbox
 - openbox
