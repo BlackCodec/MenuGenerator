@@ -7,7 +7,7 @@ import xdg.DesktopEntry
 import xdg.IconTheme
 
 ### Version ###
-CurrentVersion="0.4"
+CurrentVersion="1.0"
 
 ### Configurable Params ###
 BaseConfiguration={
@@ -20,7 +20,8 @@ CurrentRunning = {
 	'Options': {
 		'File':{
 			'Configuration':'~/.config/menugenerator/configuration',
-			'Menu':'~/.config/menugenerator/applications.menu'
+			'Menu':'~/.config/menugenerator/applications.menu',
+			'Cache':'~/.config/menugenerator/cache'
 		},
 		'Menu':{
 			'Debug':False,
@@ -33,7 +34,8 @@ CurrentRunning = {
 			'Use':False,
 			'Theme':None,
 			'Size':None,
-			'Extensions':['png','svg','xpm']
+			'Extensions':['png','svg','xpm'],
+			'ClearCache': False
 		},
 		'Categories': {
 			'Order':None,
@@ -51,7 +53,7 @@ def FirstRun():
 	if not os.path.isfile(tempfiletowrite):
 		if not os.path.exists(os.path.abspath(os.path.expanduser(BaseConfiguration['Directory']))):
 			os.makedirs(os.path.abspath(os.path.expanduser(BaseConfiguration['Directory'])))
-		tempconfigtowrite="{'Directory':'~/.config/menugenerator/',\n'Icon':{'Size':None,'Theme':None,'Extensions':['png','svg','xpm']},\n'Categories':[{'name':'Accessories','display':'Accessori', 'icon': None},{'name':'Graphics','display':'Grafica', 'icon': None},{'name':'Internet','display':'Internet', 'icon': None},{'name':'Multimedia','display':'Multimedia', 'icon': None},{'name':'Office','display':'Ufficio', 'icon': None},{'name':'System','display':'Sistema', 'icon': None}],\n'Menu':{'DefaultVM' : 'fluxbox','File':'/etc/xdg/menus/lxde-applications.menu','UseGenericName':False,'UseIcon':True,'Piped':True}}\n"
+		tempconfigtowrite="{'Directory':'~/.config/menugenerator/',\n'Icon':{'Size':None,'Theme':None,'Extensions':['png','svg','xpm'],'Cache':'~/.config/menugenerator/cache','Clear':False},\n'Categories':[{'name':'Accessories','display':'Accessori', 'icon': None},{'name':'Graphics','display':'Grafica', 'icon': None},{'name':'Internet','display':'Internet', 'icon': None},{'name':'Multimedia','display':'Multimedia', 'icon': None},{'name':'Office','display':'Ufficio', 'icon': None},{'name':'System','display':'Sistema', 'icon': None}],\n'Menu':{'DefaultVM' : 'fluxbox','File':'/etc/xdg/menus/lxde-applications.menu','UseGenericName':False,'UseIcon':True,'Piped':True}}\n"
 		with open(tempfiletowrite,"w") as myconfigurationfile:
 			myconfigurationfile.write(tempconfigtowrite)
 
@@ -76,6 +78,11 @@ def BuildRunning(tempconfigfile = None):
 		CurrentRunning['Options']['Icons']['Extensions'] = tempconfiguration['Icon']['Extensions']
 		CurrentRunning['Options']['Icons']['Use']=tempconfiguration['Menu']['UseIcon']
 		CurrentRunning['Options']['Menu']['Piped']=tempconfiguration['Menu']['Piped']
+		if os.path.isabs(os.path.expanduser(tempconfiguration['Icon']['Cache'])):
+			CurrentRunning['Options']['File']['Cache']=os.path.abspath(os.path.expanduser(tempconfiguration['Icon']['Cache']))
+		else:
+			CurrentRunning['Options']['File']['Cache']=os.path.abspath(os.path.join(os.path.exanduser(tempconfiguration['Directory']),tempconfiguration['Icon']['Cache']))
+		CurrentRunning['Options']['Icons']['ClearCache']=tempconfiguration['Icon']['Clear']
 		tempicon=dict()
 		tempname=dict()	
 		temporder=list()
@@ -117,8 +124,6 @@ def ParseMenu(tempobjectmenu = None):
 				tempobjectcategory.append(ParseApplication(tempobjectmenuentry))
 				CurrentRunning['Menu'][tempobjectmenu.getPath()]=tempobjectcategory
 
-
-
 def ParseApplication(tempobjectmenuentry):
 	Result={'name':'', 'desc':'', 'exec':'','icon':''}
 	tempobjectapplication = xdg.DesktopEntry.DesktopEntry(tempobjectmenuentry.DesktopEntry.getFileName())
@@ -132,8 +137,6 @@ def ParseApplication(tempobjectmenuentry):
 	Result['desc'] = tempobjectapplication.getComment()
 	Result['exec']=tempobjectapplication.getExec().split('%')[0]
 	return Result
-
-
 
 def ObtainIcon(tempiconname,tempiconsize=None,tempicontheme=None,tempextensions=['png', 'svg', 'xpm'], searchforcategory=False):
 	if searchforcategory:
@@ -149,6 +152,63 @@ def ObtainIcon(tempiconname,tempiconsize=None,tempicontheme=None,tempextensions=
 	else:
 		return result
 
+# Add support for SVG icon in fluxbox
+def clearXmlnsInvalidCode(src,dst):
+	import re
+	with open(src, 'r') as readfile:
+		data = readfile.read()
+	k = re.findall('xmlns:(.*)=(\".* +.*\")',data, re.MULTILINE)
+	if k:
+		for record in k:
+			data = data.replace('xmlns:'+record[0]+'='+record[1],'xmlns:'+record[0]+'='+record[1].replace(" ",""))
+		with open(dst, 'w') as writefile:
+			writefile.write(data)
+			return True
+	return False
+
+def clearSvgInvalidCode(src,dst,clear=True):
+	src=os.path.abspath(os.path.expanduser(src))
+	dst=os.path.abspath(os.path.expanduser(dst))
+	import xml.dom.minidom
+	try:
+		doc = xml.dom.minidom.parse(src)
+	except:
+		# errore xmlns
+		if clear and clearXmlnsInvalidCode(src,dst):
+			return clearSvgInvalidCode(dst,dst,False)
+		else:
+			return False
+	lineargradelems=doc.getElementsByTagName('linearGradient')
+	for elem in lineargradelems :
+		if elem.hasChildNodes() != True:
+			elem.parentNode.removeChild(elem)
+	try:
+		with open(dst, "w") as f:
+			doc.writexml(f)
+			return True
+	except:
+		return False
+
+def convertSvgIcon(svgpath, clear=True):
+	svgpath=os.path.abspath(os.path.expanduser(svgpath))
+	if not os.path.exists(os.path.abspath(os.path.expanduser(CurrentRunning['Options']['File']['Cache']))):
+		os.makedirs(os.path.abspath(os.path.expanduser(CurrentRunning['Options']['File']['Cache'])))
+	import cairosvg
+	filename = os.path.splitext(os.path.basename(svgpath))[0]
+	newname = os.path.abspath(os.path.expanduser(CurrentRunning['Options']['File']['Cache']+ "/" + filename + ".png"))
+	exists = os.path.isfile(newname)
+	if exists:
+		if clear and CurrentRunning['Options']['Icons']['ClearCache'] :
+			os.remove(newname)
+		else:
+			return newname
+	try :
+		cairosvg.svg2png(url=svgpath, write_to=newname)
+	except Exception as e :
+		newname = svgpath
+		if clear and clearSvgInvalidCode(svgpath,CurrentRunning['Options']['File']['Cache']+ "/" + filename + ".svg") :
+			newname = convertSvgIcon(CurrentRunning['Options']['File']['Cache']+ "/" + filename + ".svg",False)
+	return newname
 
 ### Menu Syntaxes ###
 def CreateFluxboxMenu():
@@ -157,12 +217,16 @@ def CreateFluxboxMenu():
 		if tempcategoryname in CurrentRunning['Options']['Categories']['Names']:
 			result += "[submenu] ("+CurrentRunning['Options']['Categories']['Names'][tempcategoryname]+") "
 			if tempcategoryname in CurrentRunning['Options']['Categories']['Icons']:
+				if (CurrentRunning['Options']['Categories']['Icons'][tempcategoryname]).endswith('.svg'):
+					CurrentRunning['Options']['Categories']['Icons'][tempcategoryname] = convertSvgIcon(CurrentRunning['Options']['Categories']['Icons'][tempcategoryname])
 				result +=" <"+CurrentRunning['Options']['Categories']['Icons'][tempcategoryname]+">"
 			result += "\n"
 			if tempcategoryname in CurrentRunning['Menu']:
 				for tempobjectapp in CurrentRunning['Menu'][tempcategoryname]:
 					result += "\t[exec] ("+tempobjectapp['name']+") {"+tempobjectapp['exec']+"} "
 					if tempobjectapp['icon'] != '':
+						if (tempobjectapp['icon']).endswith('.svg'):
+							tempobjectapp['icon'] = convertSvgIcon(tempobjectapp['icon'])
 						result +=" <"+tempobjectapp['icon']+">"
 					result +="\n"
 			result += "[end]\n"
@@ -213,20 +277,21 @@ def PrintHelp():
 	print(" -d , --dumpconfig: print the configuration file used for process")
 	print(" -g , --generate: generate the menu with default options")
 	print(" -i , --icon: use icon in menu")
+	print(" -c , --clear: clear the icon cache (only for FluxBox png from svg icon)")
 	print(" -p , --pipe: print the generated menu to stdout")
 	print(" -w <windowmanager> , --wm=<windowmanager>: generate the menu for the window manager specified\n")
 	print("Supported Window Manager - Value to use:")
 	print("Fluxbox: fluxbox")
 	print("JWM: jwm")
 	print("Openbox: openbox")
-	print("\nVersion:"+ CurrentVersion + "\n\nAuthor: Black_Codec\nSite: <http://www.underatrain.it/>\nRepository: <https://github.com/BlackCodec/MenuGenerator>")
+	print("\nVersion:"+ CurrentVersion + "\n\nAuthor: Black_Codec\nSite: <http://www.icapito.it/>\nRepository: <https://github.com/BlackCodec/MenuGenerator>")
 
 ### BEGIN RUN ###
 def main(argv):
 	FirstRun()
 	BuildRunning()
 	try:
-		opts, args = getopt.getopt(argv,"dgihpvw:o:",["version","dumpconfig","generate","icon","help","pipe","wm=","options="])
+		opts, args = getopt.getopt(argv,"dgihpcvw:o:",["version","dumpconfig","generate","icon","help","pipe","clear","wm=","options="])
 	except getopt.GetoptError as e:
 		print("[ERROR] "+ e.args[0]+"\n")
 		PrintHelp();
@@ -237,7 +302,7 @@ def main(argv):
 			sys.exit(0)
 		elif opt in ("-v", "--version"):
 			print("Openbox: openbox")
-			print("\nVersion:"+ CurrentVersion + "\n\nAuthor: Black_Codec\nSite: <http://www.underatrain.it/>\nRepository: <https://github.com/BlackCodec/MenuGenerator>")
+			print("\nVersion:"+ CurrentVersion + "\n\nAuthor: Black_Codec\nSite: <http://www.icapito.it/>\nRepository: <https://github.com/BlackCodec/MenuGenerator>")
 			sys.exit(0)
 		elif opt in ("-g", "--generate"):
 			CurrentRunning['Options']['Menu']['Create'] = True
@@ -247,6 +312,8 @@ def main(argv):
 		elif opt in ("-p" , "--pipe"):
 			CurrentRunning['Options']['Menu']['Create'] = True
 			CurrentRunning['Options']['Menu']['Piped'] = True
+		elif opt in ("-c" , "--clear"):
+			CurrentRunning['Options']['Icons']['ClearCache'] = True
 		elif opt in ("-w", "--wm"):
 			CurrentRunning['Options']['Menu']['Create'] = True
 			CurrentRunning['Options']['Menu']['Syntax'] = arg.lower()

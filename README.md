@@ -1,6 +1,6 @@
 # MenuGenerator
 ---
-Version: 0.4
+Version: 1.0
 ---
 Simple menugenerator for this wm:
 - fluxbox
@@ -21,3 +21,9 @@ Usage:
 
 Configuration File:
 > ~/.config/menugenerator/configuration
+
+---
+
+Changelog:
+- 1.0:
+ Added support for svg conversion to png so it can be used in fluxbox menu
