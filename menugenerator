@@ -7,7 +7,7 @@ import xdg.DesktopEntry
 import xdg.IconTheme
 
 ### Version ###
-CurrentVersion="1.0"
+CurrentVersion="1.1"
 
 ### Configurable Params ###
 BaseConfiguration={
@@ -21,7 +21,8 @@ CurrentRunning = {
 		'File':{
 			'Configuration':'~/.config/menugenerator/configuration',
 			'Menu':'~/.config/menugenerator/applications.menu',
-			'Cache':'~/.config/menugenerator/cache'
+			'Cache':'~/.config/menugenerator/cache',
+			'Output':None
 		},
 		'Menu':{
 			'Debug':False,
@@ -53,7 +54,7 @@ def FirstRun():
 	if not os.path.isfile(tempfiletowrite):
 		if not os.path.exists(os.path.abspath(os.path.expanduser(BaseConfiguration['Directory']))):
 			os.makedirs(os.path.abspath(os.path.expanduser(BaseConfiguration['Directory'])))
-		tempconfigtowrite="{'Directory':'~/.config/menugenerator/',\n'Icon':{'Size':None,'Theme':None,'Extensions':['png','svg','xpm'],'Cache':'~/.config/menugenerator/cache','Clear':False},\n'Categories':[{'name':'Accessories','display':'Accessori', 'icon': None},{'name':'Graphics','display':'Grafica', 'icon': None},{'name':'Internet','display':'Internet', 'icon': None},{'name':'Multimedia','display':'Multimedia', 'icon': None},{'name':'Office','display':'Ufficio', 'icon': None},{'name':'System','display':'Sistema', 'icon': None}],\n'Menu':{'DefaultVM' : 'fluxbox','File':'/etc/xdg/menus/lxde-applications.menu','UseGenericName':False,'UseIcon':True,'Piped':True}}\n"
+		tempconfigtowrite="{'Directory':'~/.config/menugenerator/',\n'Icon':{'Size':None,'Theme':None,'Extensions':['png','svg','xpm'],'Cache':'~/.config/menugenerator/cache','Clear':False},\n'Categories':[{'name':'Accessories','display':'Accessori', 'icon': None},{'name':'Graphics','display':'Grafica', 'icon': None},{'name':'Internet','display':'Internet', 'icon': None},{'name':'Multimedia','display':'Multimedia', 'icon': None},{'name':'Office','display':'Ufficio', 'icon': None},{'name':'System','display':'Sistema', 'icon': None}],\n'Menu':{'DefaultVM' : 'fluxbox','File':'/etc/xdg/menus/lxde-applications.menu','UseGenericName':False,'UseIcon':True,'Piped':True, 'Output':None}}\n"
 		with open(tempfiletowrite,"w") as myconfigurationfile:
 			myconfigurationfile.write(tempconfigtowrite)
 
@@ -78,6 +79,13 @@ def BuildRunning(tempconfigfile = None):
 		CurrentRunning['Options']['Icons']['Extensions'] = tempconfiguration['Icon']['Extensions']
 		CurrentRunning['Options']['Icons']['Use']=tempconfiguration['Menu']['UseIcon']
 		CurrentRunning['Options']['Menu']['Piped']=tempconfiguration['Menu']['Piped']
+		if tempconfiguration['Menu']['Output'] != None:
+			if os.path.isabs(os.path.expanduser(tempconfiguration['Menu']['Output'])):
+				CurrentRunning['Options']['File']['Output']=os.path.abspath(os.path.expanduser(tempconfiguration['Menu']['Output']))
+			else:
+				CurrentRunning['Options']['File']['Output']=os.path.abspath(os.path.join(os.path.exanduser(tempconfiguration['Directory']),tempconfiguration['Menu']['Output']))
+		else:
+			CurrentRunning['Options']['File']['Output']=None
 		if os.path.isabs(os.path.expanduser(tempconfiguration['Icon']['Cache'])):
 			CurrentRunning['Options']['File']['Cache']=os.path.abspath(os.path.expanduser(tempconfiguration['Icon']['Cache']))
 		else:
@@ -279,6 +287,8 @@ def PrintHelp():
 	print(" -i , --icon: use icon in menu")
 	print(" -c , --clear: clear the icon cache (only for FluxBox png from svg icon)")
 	print(" -p , --pipe: print the generated menu to stdout")
+	print(" -o , --options: use these options")
+	print(" -f , --file=<filename>: save the generated menu to file")
 	print(" -w <windowmanager> , --wm=<windowmanager>: generate the menu for the window manager specified\n")
 	print("Supported Window Manager - Value to use:")
 	print("Fluxbox: fluxbox")
@@ -291,7 +301,7 @@ def main(argv):
 	FirstRun()
 	BuildRunning()
 	try:
-		opts, args = getopt.getopt(argv,"dgihpcvw:o:",["version","dumpconfig","generate","icon","help","pipe","clear","wm=","options="])
+		opts, args = getopt.getopt(argv,"dgihpcvwf:o:",["version","dumpconfig","generate","icon","help","pipe","clear","wm=","file=","options="])
 	except getopt.GetoptError as e:
 		print("[ERROR] "+ e.args[0]+"\n")
 		PrintHelp();
@@ -319,6 +329,10 @@ def main(argv):
 			CurrentRunning['Options']['Menu']['Syntax'] = arg.lower()
 		elif opt in ("-d", "--dumpconfig"):
 			CurrentRunning['Options']['Menu']['Debug'] = True
+		elif opt in ("-f", "--file"):
+			CurrentRunning['Options']['Menu']['Create'] = True
+			CurrentRunning['Options']['Menu']['Piped'] = False
+			CurrentRunning['Options']['File']['Output'] = arg.lower()
 		elif opt in ("-o", "--options"):
 			BuildRunning(arg.lower())
 		else:
@@ -340,6 +354,10 @@ def main(argv):
 			tempmenu = CreateOpenboxMenu()
 		if CurrentRunning['Options']['Menu']['Piped']:
 			print(tempmenu)
+		elif CurrentRunning['Options']['File']['Output'] != None:
+			outfile = open(CurrentRunning['Options']['File']['Output'],"w")
+			outfile.write(tempmenu)
+			outfile.close()
 	sys.exit(0)
 			
 
