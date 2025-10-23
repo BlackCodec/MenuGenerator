@@ -71,7 +71,7 @@ def BuildRunning(tempconfigfile = None):
 		if os.path.isabs(os.path.expanduser(tempconfiguration['Menu']['File'])):
 			CurrentRunning['Options']['File']['Menu']=tempconfiguration['Menu']['File']
 		else:
-			CurrentRunning['Options']['File']['Menu']=os.path.abspath(os.path.join(os.path.exanduser(tempconfiguration['Directory']),tempconfiguration['Menu']['File']))
+			CurrentRunning['Options']['File']['Menu']=os.path.abspath(os.path.join(os.path.expanduser(tempconfiguration['Directory']),tempconfiguration['Menu']['File']))
 		CurrentRunning['Options']['Menu']['Syntax']=tempconfiguration['Menu']['DefaultVM']
 		CurrentRunning['Options']['Menu']['UseGenericName'] = tempconfiguration['Menu']['UseGenericName']
 		CurrentRunning['Options']['Icons']['Theme'] = tempconfiguration['Icon']['Theme']
@@ -83,13 +83,13 @@ def BuildRunning(tempconfigfile = None):
 			if os.path.isabs(os.path.expanduser(tempconfiguration['Menu']['Output'])):
 				CurrentRunning['Options']['File']['Output']=os.path.abspath(os.path.expanduser(tempconfiguration['Menu']['Output']))
 			else:
-				CurrentRunning['Options']['File']['Output']=os.path.abspath(os.path.join(os.path.exanduser(tempconfiguration['Directory']),tempconfiguration['Menu']['Output']))
+				CurrentRunning['Options']['File']['Output']=os.path.abspath(os.path.join(os.path.expanduser(tempconfiguration['Directory']),tempconfiguration['Menu']['Output']))
 		else:
 			CurrentRunning['Options']['File']['Output']=None
 		if os.path.isabs(os.path.expanduser(tempconfiguration['Icon']['Cache'])):
 			CurrentRunning['Options']['File']['Cache']=os.path.abspath(os.path.expanduser(tempconfiguration['Icon']['Cache']))
 		else:
-			CurrentRunning['Options']['File']['Cache']=os.path.abspath(os.path.join(os.path.exanduser(tempconfiguration['Directory']),tempconfiguration['Icon']['Cache']))
+			CurrentRunning['Options']['File']['Cache']=os.path.abspath(os.path.join(os.path.expanduser(tempconfiguration['Directory']),tempconfiguration['Icon']['Cache']))
 		CurrentRunning['Options']['Icons']['ClearCache']=tempconfiguration['Icon']['Clear']
 		tempicon=dict()
 		tempname=dict()	
@@ -301,7 +301,7 @@ def main(argv):
 	FirstRun()
 	BuildRunning()
 	try:
-		opts, args = getopt.getopt(argv,"dgihpcvwf:o:",["version","dumpconfig","generate","icon","help","pipe","clear","wm=","file=","options="])
+		opts, args = getopt.getopt(argv,"dgihpcvw:f:o:",["version","dumpconfig","generate","icon","help","pipe","clear","wm=","file=","options="])
 	except getopt.GetoptError as e:
 		print("[ERROR] "+ e.args[0]+"\n")
 		PrintHelp();
