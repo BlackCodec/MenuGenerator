@@ -1,6 +1,6 @@
 # MenuGenerator
 ---
-Version: 1.1
+Version: 1.2
 ---
 Simple menugenerator for this wm:
 - fluxbox
@@ -25,6 +25,9 @@ Configuration File:
 ---
 
 Changelog:
+- 1.2:
+  Fix typos errors and fix the issue with -w flag (thanks: oliwier975PL)
+  
 - 1.1:
  Added support for save menu direct to file in configuration and launch parameters
 
